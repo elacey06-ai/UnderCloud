@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Undercloud</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a pixel-art shaft pinned to the left (top band on phones) where your tape sinks;
+   one left-aligned column of play beside it. 16-bit console look: hard borders, hard shadows, scanlines.
+   The page sinks from dusk haze to black ice as the score grows. Single theme by choice. */
+:root{
+  color-scheme: dark;
+  --bg: rgb(98,78,122);
+  --ink: #f6f0fa;
+  --muted: rgba(246,240,250,.7);
+  --line: rgba(246,240,250,.28);
+  --panel: rgba(10,8,24,.5);
+  --shadow: #0c0818;
+  --peach: #ffc9b0;
+  --ice: #8fe9ff;
+  --bad: #ff7d9c;
+  --t0:#ffc9b0; --t1:#ffa8c5; --t2:#d6a8ff; --t3:#9db4ff; --t4:#8fe9ff; --t5:#ffffff;
+  --display: "Press Start 2P", "Courier New", monospace;
+  --body: "VT323", "Courier New", monospace;
+  --tw: 264px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font:400 21px/1.25 var(--body);transition:background-color 1.4s steps(8);overflow-x:hidden}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.13) 2px 3px)}
+
+/* tunnel */
+.tunnel{position:fixed;left:0;top:0;bottom:0;width:var(--tw);border-right:3px solid var(--shadow);background:#1b1430;z-index:3}
+.tunnel canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:10px 10px;background:var(--shadow);border-bottom:3px solid var(--ink);font:400 10px/1 var(--display);text-transform:uppercase}
+.hud b{font-weight:400;color:var(--ice);font-variant-numeric:tabular-nums}
+
+main{position:relative;z-index:1;margin-left:var(--tw);padding:30px 22px 64px 30px;max-width:calc(700px + var(--tw))}
+h1{font:400 clamp(17px,2.9vw,27px)/1.55 var(--display);margin:14px 0 16px;text-wrap:balance;text-transform:uppercase;text-shadow:3px 3px 0 var(--shadow)}
+h2{font:400 clamp(26px,4.4vw,34px)/1.1 var(--body);margin:10px 0 6px;text-wrap:balance}
+p{margin:0 0 14px;max-width:58ch}
+.lede{font-size:24px}
+.muted{color:var(--muted)}
+.eyebrow{font:400 10px/1.4 var(--display);text-transform:uppercase;color:var(--muted)}
+[hidden]{display:none !important}
+
+.btns{display:flex;gap:14px;flex-wrap:wrap;margin:22px 0 16px}
+button{font:400 11px/1.3 var(--display);text-transform:uppercase;color:var(--ink);background:#2a2148;border:3px solid var(--ink);
+  padding:12px 14px;border-radius:0;cursor:pointer;box-shadow:4px 4px 0 var(--shadow)}
+button:hover{background:#3a2e63}
+button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--shadow)}
+button.primary{background:var(--ink);color:#1a1230}
+button.primary:hover{background:#fff}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ice);outline-offset:3px}
+
+.tiers{display:grid;margin:22px 0 6px;border-top:2px dashed var(--line)}
+.trow{display:grid;grid-template-columns:190px 1fr;gap:14px;align-items:start;padding:9px 0;border-bottom:2px dashed var(--line)}
+.tname{display:flex;flex-direction:column;gap:2px;font-size:23px;line-height:1.05;color:var(--tc)}
+.tname small{white-space:nowrap;font-size:17px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tdesc{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:19px;line-height:1.1;padding:3px 8px;border:2px solid var(--line);color:var(--ink)}
+.chip.you{background:var(--tc);color:#160f2a;border-color:var(--tc)}
+.t0{--tc:var(--t0)}.t1{--tc:var(--t1)}.t2{--tc:var(--t2)}.t3{--tc:var(--t3)}.t4{--tc:var(--t4)}.t5{--tc:var(--t5)}
+
+.card{background:var(--panel);border:3px solid var(--ink);box-shadow:6px 6px 0 var(--shadow);padding:22px}
+.note{color:var(--muted);margin-bottom:16px}
+.timer{height:16px;border:2px solid var(--ink);padding:2px;margin:16px 0 14px;background:var(--shadow)}
+.timer span{display:block;height:100%;width:100%;background:repeating-linear-gradient(90deg,var(--peach) 0 9px,transparent 9px 12px)}
+.timer.low span{background:repeating-linear-gradient(90deg,var(--bad) 0 9px,transparent 9px 12px)}
+.entry{display:flex;gap:14px;flex-wrap:wrap}
+input[type=text]{flex:1 1 220px;min-width:0;font:400 26px/1.1 var(--body);color:var(--ink);background:var(--shadow);border:3px solid var(--ink);border-radius:0;padding:8px 12px}
+input::placeholder{color:rgba(246,240,250,.4)}
+.msg{min-height:26px;margin-top:12px;color:var(--bad)}
+.shake{animation:shake .28s steps(4)}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.tier-word{font:400 clamp(18px,4vw,28px)/1.3 var(--display);text-transform:uppercase;color:var(--tc);margin:10px 0 8px;text-shadow:3px 3px 0 var(--shadow)}
+.gain{color:var(--muted)}
+.gain b{color:var(--ink);font-weight:400}
+
+.final{font:400 clamp(30px,8vw,60px)/1.2 var(--display);margin:14px 0 8px;font-variant-numeric:tabular-nums;text-shadow:4px 4px 0 var(--shadow)}
+.log{list-style:none;padding:0;margin:20px 0;border-top:2px dashed var(--line)}
+.log li{display:grid;grid-template-columns:1fr auto;gap:0 14px;padding:8px 0;border-bottom:2px dashed var(--line)}
+.log .q{color:var(--muted);grid-column:1/-1;font-size:18px}
+.log .a{color:var(--tc)}
+.log .m{color:var(--muted);font-variant-numeric:tabular-nums}
+.log .miss{--tc:var(--muted)}
+textarea{width:100%;min-height:92px;margin-top:10px;background:var(--shadow);color:var(--ink);border:3px solid var(--ink);padding:10px;font:400 20px/1.3 var(--body)}
+
+@media (max-width:760px){
+  .tunnel{position:sticky;width:100%;height:190px;border-right:0;border-bottom:3px solid var(--shadow)}
+  main{margin-left:0;padding:20px 16px 56px}
+  .trow{grid-template-columns:1fr;gap:4px}
+  .tname{flex-direction:row;align-items:baseline;gap:10px}
+  .card{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .shake{animation:none}
+  body{transition:none}
+}
+</style>
+</head>
+<body>
+<aside class="tunnel">
+  <canvas id="cv" role="img" aria-label="Your tape sinking down the shaft, with each answer marked at the depth it reached"></canvas>
+  <div class="hud"><span>Undercloud</span><span aria-live="polite"><b id="depth">0</b> m</span></div>
+</aside>
+
+<main>
+  <!-- START -->
+  <section id="s-start">
+    <div class="eyebrow">Cloud rap trivia / 7 prompts</div>
+    <h1>The rarer the answer, the deeper you sink</h1>
+    <p class="lede">Each prompt has many right answers. Type one. Everybody says A$AP Rocky, so that barely moves you. Name the producer nobody remembers and your tape drops 1,000 meters down the shaft.</p>
+    <p class="muted">You get 25 seconds per prompt and one scored answer. A guess that isn't in the answer bank costs nothing, so keep trying until the clock runs out. Spelling is forgiving.</p>
+
+    <div class="btns">
+      <button class="primary" id="b-daily">Start today's dive</button>
+      <button id="b-free">Free dive, random prompts</button>
+    </div>
+    <p class="muted" id="best"></p>
+
+    <div class="tiers" id="legend"></div>
+    <p class="muted" style="font-size:18px;margin-top:14px">A perfect run is 700 points, 7,000 m. Rarity is hand-ranked, and open-ended answer banks can miss a valid name.</p>
+  </section>
+
+  <!-- PLAY -->
+  <section id="s-play" hidden>
+    <div class="card">
+      <div class="eyebrow" id="count">Prompt 1 of 7</div>
+      <h2 id="q"></h2>
+      <div class="note" id="note"></div>
+
+      <div id="ask">
+        <div class="timer" id="timer"><span id="tbar"></span></div>
+        <form class="entry" id="form" autocomplete="off">
+          <input type="text" id="guess" placeholder="Type an answer" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Your answer">
+          <button class="primary" type="submit" id="b-go">Sink</button>
+          <button type="button" id="b-pass">Pass</button>
+        </form>
+        <div class="msg" id="msg" role="status"></div>
+      </div>
+
+      <div class="result" id="result" hidden>
+        <div class="eyebrow" id="r-eyebrow"></div>
+        <div class="tier-word" id="r-tier"></div>
+        <div class="gain" id="r-gain"></div>
+        <div class="btns"><button class="primary" id="b-next">Next prompt</button></div>
+        <div class="eyebrow" style="margin-top:8px">Every answer in the bank</div>
+        <div class="tiers" id="ladder" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section id="s-end" hidden>
+    <div class="eyebrow" id="e-mode"></div>
+    <div class="final"><span id="e-depth">0</span><span style="font-size:.4em"> m</span></div>
+    <h2 id="e-rank"></h2>
+    <p class="muted" id="e-line"></p>
+    <ul class="log" id="e-log"></ul>
+    <div class="btns">
+      <button class="primary" id="b-copy">Copy result</button>
+      <button id="b-again">Free dive again</button>
+      <button id="b-home">Back to start</button>
+    </div>
+    <textarea id="e-share" readonly hidden aria-label="Result text"></textarea>
+  </section>
+</main>
+
+<script>
+const TIERS = [
+  {n:"Radio",      p:10,  d:"The first name everyone thinks of."},
+  {n:"Blog Era",   p:25,  d:"Known to anyone who read the blogs in 2011."},
+  {n:"Tumblr",     p:45,  d:"You reblogged the cover art."},
+  {n:"SoundCloud", p:65,  d:"You followed the producer, not the rapper."},
+  {n:"Deep Cut",   p:85,  d:"You had the .zip from a dead Mediafire link."},
+  {n:"Lost Tape",  p:100, d:"The rarest answer in the bank."}
+];
+const SECONDS = 25, ROUNDS = 7, FLOOR = 7000;
+
+/* [tier, canonical name, "alias|alias"] */
+const PROMPTS = [
+ {q:"Name a member of Drain Gang or Sad Boys", note:"Rappers and producers both count.", a:[
+  [0,"Yung Lean","lean"],[0,"Bladee"],[1,"Ecco2k","ecco 2k|ecco"],[2,"Thaiboy Digital","thaiboy"],
+  [3,"Yung Gud","gud"],[4,"Whitearmor","white armor"],[5,"Yung Sherman","sherman"]]},
+
+ {q:"Name a member of A$AP Mob", note:"Past or present. You can leave off the A$AP.", a:[
+  [0,"A$AP Rocky"],[0,"A$AP Ferg"],[1,"A$AP Yams"],[2,"A$AP Nast"],[2,"A$AP Twelvyy","twelvy|asap twelvy"],
+  [3,"A$AP Bari","young lord"],[3,"A$AP Ant","yg addie|addie"],[3,"A$AP Illz"],[4,"A$AP Ty Beats"],[4,"A$AP Relli"],
+  [5,"A$AP Lou"],[5,"A$AP TyY"],[5,"A$AP Snacks"],[5,"J. Scott","asap j scott"]]},
+
+ {q:"Name a member of Raider Klan", note:"SpaceGhostPurrp's crew. Past or present.", a:[
+  [0,"SpaceGhostPurrp","sgp|spaceghostpurp|purrp|space ghost purp"],[0,"Denzel Curry","denzel"],
+  [1,"Xavier Wulf","ethelwulf|wulf"],[2,"Chris Travis"],[2,"Yung Simmie","simmie"],
+  [3,"Amber London"],[3,"Eddy Baker","eddie baker"],[3,"Key Nyata"],
+  [4,"Nell"],[4,"Ruben Slikk","ruben slick"],[4,"Grandmilly","grand milly"],
+  [5,"Rell"],[5,"Dough Dough Da Don","dough dough"],[5,"Lil Champ Fway","lil champ|champ fway"],
+  [5,"Big Zeem","zeem"],[5,"Matt Stoops"],[5,"Sky Lexington"],[5,"Kadafi"]]},
+
+ {q:"Name a producer or guest on A$AP Rocky's Live.Love.A$AP", note:"The 2011 mixtape. Anyone credited besides Rocky.", a:[
+  [0,"Clams Casino","clammy clams"],[1,"SpaceGhostPurrp","sgp|spaceghostpurp|purrp"],[1,"ScHoolboy Q","schoolboy"],[1,"A$AP Ferg"],
+  [2,"A$AP Ty Beats"],[2,"A$AP Nast"],[2,"A$AP Twelvyy","twelvy|asap twelvy"],
+  [3,"Main Attrakionz","main attractions|main attrakions"],[3,"Beautiful Lou"],[3,"DJ Burn One","burn one"],
+  [4,"Fat Tony"],[4,"Soufien3000","soufien"],
+  [5,"Chace Infinite","chase infinite"],[5,"Lyle LeDuff","lyle"],[5,"The Olympicks"]]},
+
+ {q:"Name a Lil B mixtape or album", note:"He has dozens. Collabs count.", a:[
+  [0,"I'm Gay (I'm Happy)","im gay"],[0,"God's Father"],
+  [1,"6 Kiss","six kiss"],[1,"Rain in England"],[1,"Black Ken"],[1,"Thugged Out Pissed Off","topo"],
+  [2,"05 Fuck Em","05 f em|05 fuck em"],[2,"Blue Flame"],[2,"Red Flame"],[2,"White Flame"],[2,"Angels Exodus"],[2,"Free","free based freestyles mixtape|free based freestyles"],
+  [3,"Hoop Life"],[3,"Basedworld Paradise"],[3,"Illusions of Grandeur"],[3,"Bitch Mob: Respect da Bitch","bitch mob|respect da bitch"],
+  [3,"Black Flame"],[3,"The Silent President"],[3,"Pink Flame"],[3,"Evil Red Flame"],[3,"Green Flame"],[3,"Gold House"],[3,"Platinum Flame"],[3,"Pretty Boy Millionaires"],
+  [4,"Obama BasedGod"],[4,"Glassface"],[4,"Halloween H2O"],[4,"Crime Fetish"],[4,"Water Is D.M.G.","water is dmg"],[4,"Trapped in BasedWorld"],
+  [4,"BasedGod Velli"],[4,"Dior Paint"],[4,"Options"],[4,"28 wit a Ladder","28 with a ladder"],[4,"Loyalty Casket"],[4,"100% Gutta","100 percent gutta"],
+  [4,"Ultimate Bitch Mixtape","ultimate bitch"],[4,"P.Y.T.","pretty young thug"],[4,"Tears 4 God","tears for god"],[4,"Based Jam"],[4,"Everything Based"],[4,"I Forgive You"],
+  [5,"Frozen"],[5,"The Frozen Tape"],[5,"The Hunchback of BasedGod","hunchback of basedgod"],[5,"Gutta Dealership"],[5,"Bruno wit da Pruno","bruno with da pruno"],
+  [5,"Afrikantis"],[5,"Paint"],[5,"Roses Exodus"]]},
+
+ {q:"Name an artist Clams Casino has produced a track for", note:"Open-ended, so the bank won't have everyone.", a:[
+  [0,"Lil B","lil b the basedgod|basedgod"],[0,"A$AP Rocky"],
+  [1,"The Weeknd"],[1,"Mac Miller"],[1,"Vince Staples"],
+  [2,"Main Attrakionz","main attractions|main attrakions"],[2,"Lil Peep"],[2,"Joji"],[2,"ScHoolboy Q","schoolboy"],
+  [3,"Danny Brown"],[3,"A$AP Ferg"],[3,"FKA twigs","twigs"],[3,"Soulja Boy","soulja boy tell em"],
+  [4,"Kelela"],[4,"Squadda B","squadda bambino"],[4,"Mikky Ekko","mikky ekko|micky ekko"],[4,"Samuel T. Herring","sam herring|samuel herring|future islands"],
+  [5,"Havoc"],[5,"Kelly Zutrau","wet"],[5,"Sam Dew"]]},
+
+ {q:"Name a Bladee album, mixtape or EP", note:"Solo or collaborative.", a:[
+  [0,"Cold Visions"],[0,"Eversince"],
+  [1,"Gluee"],[1,"The Fool"],[1,"Icedancer","ice dancer"],[1,"333"],
+  [2,"Red Light"],[2,"Exeter"],[2,"Good Luck"],[2,"Crest"],[2,"Spiderr","spider"],
+  [3,"Working on Dying"],[3,"Psykos"],[3,"Trash Island"],[3,"D&G","dg|d n g"],
+  [4,"Rip Bladee"],[5,"AvP","alien vs predator"],[5,"Vanilla Sky"]]},
+
+ {q:"Name a Yung Lean project", note:"His side aliases count too.", a:[
+  [0,"Unknown Death 2002","unknown death"],
+  [1,"Unknown Memory"],[1,"Warlord"],[1,"Stranger"],[1,"Starz"],
+  [2,"Lavender EP","lavender"],[2,"Frost God"],[2,"Poison Ivy"],[2,"Stardust"],[2,"Psykos"],[2,"Jonatan"],
+  [3,"Total Eclipse"],
+  [4,"Nectar"],[4,"Blodhundar & Lullabies","blodhundar"],[4,"Sugar World"],
+  [5,"Psychopath Ballads"],[5,"Katla"],[5,"Drabbad av sjukdom"]]},
+
+ {q:"Name someone from Seshollowaterboyz or TeamSESH", note:"Rappers and producers both count.", a:[
+  [0,"Bones"],[1,"Xavier Wulf","wulf|ethelwulf"],[2,"Chris Travis"],[2,"Eddy Baker","eddie baker"],
+  [4,"Greaf"],[4,"Cat Soup"],[4,"Vegard","vegard veslelia"],[4,"Drew the Architect"],
+  [5,"Fifty Grand"],[5,"Curtis Heron"],[5,"Drip-133"]]},
+
+ {q:"Name a Bay Area act from the based and cloud rap scene", note:"Rappers, groups and producers. Open-ended.", a:[
+  [0,"Lil B","lil b the basedgod|basedgod"],[1,"The Pack"],[1,"Main Attrakionz","main attractions|main attrakions"],
+  [2,"Young L"],[3,"Squadda B","squadda bambino"],[3,"MondreM.A.N.","mondre|mondre man"],[3,"Antwon"],[3,"Friendzone","friend zone"],
+  [4,"Stunnaman","stunnaman02"],[4,"Lil Uno","uno"],[4,"Shady Blaze"],[5,"Dope G"]]},
+
+ {q:"Name a cloud rap artist whose name starts with Yung", note:"Any country. You can leave off the Yung.", a:[
+  [0,"Yung Lean","lean"],[2,"Yung Gud","gud"],[2,"Yung Sherman","sherman"],[2,"Yung Bans","bans"],
+  [3,"Yung Hurn","hurn"],[3,"Yung Beef","beef"],[3,"Yung Simmie","simmie"],[3,"Yung Gleesh","gleesh"],
+  [4,"Yung Bruh","bruh"],[5,"Yung Jake","jake"]]},
+
+ {q:"Name a member of GothBoiClique", note:"Rappers and producers both count.", a:[
+  [0,"Lil Peep","peep"],[1,"Lil Tracy","tracy"],[2,"Wicca Phase Springs Eternal","wicca phase|wicca"],[2,"Cold Hart","coldhart"],
+  [3,"Horse Head","horsehead"],[3,"Mackned","mack ned"],[3,"Nedarb","nedarb nagrom"],[3,"Fish Narc","fishnarc"],
+  [4,"Yawns"],[4,"Døves","doves"],[4,"Lil Zubin","zubin"],[5,"JPDreamthug","jp dreamthug"]]},
+
+ {q:"Name a producer who shaped the cloud rap sound", note:"Open-ended, so the bank won't have everyone.", a:[
+  [0,"Clams Casino","clammy clams"],[1,"SpaceGhostPurrp","sgp|spaceghostpurp|purrp"],
+  [2,"Whitearmor","white armor"],[2,"Yung Gud","gud"],[2,"Friendzone","friend zone"],[2,"Ryan Hemsworth"],
+  [3,"Yung Sherman","sherman"],[3,"Keyboard Kid","keyboard kid 206"],[3,"Beautiful Lou"],[3,"Squadda B","squadda bambino"],
+  [3,"Blue Sky Black Death","bsbd"],[3,"Suicideyear","suicide year"],[3,"A$AP Ty Beats"],[3,"F1lthy","filthy"],[3,"Eric Dingus","dingus"],
+  [4,"DJ Burn One","burn one"],[4,"Mechatok"],[4,"Silky Johnson"],[4,"DJ Smokey"],[4,"Oogie Mane"],
+  [5,"Woesum"],[5,"Ripsquadd","ripsquad"],[5,"Lusi"],[5,"Marlee B"],[5,"L.W.H."]]},
+
+ {q:"Name a crew or collective from the cloud rap world", note:"Groups, labels and cliques. Open-ended.", a:[
+  [0,"A$AP Mob"],[0,"Sad Boys","sadboys|sad boys entertainment|sbe"],
+  [1,"Drain Gang","gravity boys|gtbsg"],[1,"Raider Klan","rvidxr klvn|raiderklan"],[1,"GothBoiClique","gbc|goth boi clique|gothboyclique"],
+  [2,"Seshollowaterboyz","shwb|sesh hollow water boyz"],[2,"TeamSESH","sesh"],[2,"The Pack"],[2,"Main Attrakionz","main attractions|main attrakions"],
+  [3,"Metro Zu"],[3,"Goth Money Records","goth money"],[3,"Working on Dying"],[3,"Surf Gang"],
+  [4,"Green Ova","green ova undergrounds"],[4,"Thraxxhouse","thraxx house"],[4,"Hollow Squad"],[4,"Water Boyz"],[4,"Reptilian Club Boyz","rcb"],
+  [5,"Shed Theory"],[5,"Schemaposse","schema posse"]]},
+
+ {q:"Name a member of Metro Zu or Main Attrakionz", note:"Miami and Oakland. Every answer here runs deep.", a:[
+  [2,"Squadda B","squadda bambino"],[2,"MondreM.A.N.","mondre|mondre man"],
+  [3,"Lofty305","lofty"],[4,"Ruben Slikk","ruben slick"],
+  [5,"Mr. B the Poshstronaut","poshstronaut|posh|mr b|the poshstronaut"],[5,"Freebase"]]},
+
+ {q:"Name a featured artist on A$AP Rocky's Long.Live.A$AP", note:"The 2013 album, deluxe tracks included.", a:[
+  [0,"Drake"],[0,"Kendrick Lamar","kendrick"],[0,"2 Chainz","two chainz|2chainz"],
+  [1,"Skrillex"],[1,"ScHoolboy Q","schoolboy"],
+  [2,"Joey Bada$$","joey"],[2,"Danny Brown"],[2,"Action Bronson","bronson"],[2,"Big K.R.I.T.","krit"],
+  [3,"Yelawolf"],[3,"Santigold"],[3,"Florence Welch","florence|florence and the machine"],[3,"A$AP Ferg"],
+  [4,"Gunplay"],[5,"OverDoz.","over doz"],[5,"Birdy Nam Nam"]]},
+
+ {q:"Name a song on A$AP Rocky's Live.Love.A$AP", note:"The 2011 mixtape, 16 tracks.", a:[
+  [0,"Peso"],[0,"Purple Swag: Chapter 2","purple swag|purple swag chapter 2"],[1,"Wassup"],[1,"Palace"],
+  [2,"Bass"],[2,"Brand New Guy"],[3,"Trilla"],[3,"Kissin' Pink","kissing pink"],[3,"Keep It G"],[3,"Get Lit"],[3,"Demons"],[3,"Leaf"],
+  [4,"Houston Old Head"],[4,"Acid Drip"],[4,"Roll One Up"],[5,"Out of This World"]]},
+
+ {q:"Name a song on A$AP Rocky's Long.Live.A$AP", note:"The 2013 album, deluxe tracks included.", a:[
+  [0,"Fuckin' Problems","problems|fucking problems|f**kin problems|fkin problems"],[0,"Goldie"],[0,"Wild for the Night"],
+  [1,"Long Live A$AP"],[1,"Fashion Killa","fashion killer"],[1,"1 Train","one train"],
+  [2,"PMW (All I Really Need)","pmw|all i really need"],[2,"LVL","level"],[2,"Phoenix"],
+  [3,"Hell"],[3,"Pain"],[3,"Suddenly"],[4,"Jodye"],[4,"Ghetto Symphony"],[4,"Angels"],[5,"I Come Apart"]]},
+
+ {q:"Name a guest on A$AP Rocky's At.Long.Last.A$AP", note:"The 2015 album. Anyone featured.", a:[
+  [0,"Kanye West","kanye|ye"],[0,"Lil Wayne","wayne|weezy"],[0,"Future"],
+  [1,"M.I.A."],[1,"ScHoolboy Q","schoolboy"],[1,"Rod Stewart"],[1,"Miguel"],
+  [2,"Juicy J"],[2,"Mark Ronson","ronson"],[2,"Mos Def","yasiin bey"],
+  [3,"Joe Fox"],[3,"Bones"],[3,"UGK","bun b|pimp c"],
+  [4,"James Fauntleroy","fauntleroy"],[4,"A$AP Yams"],[5,"Acyde","a-cyde"]]},
+
+ {q:"Name a song on Yung Lean's Unknown Death 2002", note:"The 2013 mixtape, 12 tracks.", a:[
+  [0,"Hurt"],[0,"Gatorade"],[1,"Nitevision","nightvision|nite vision"],[1,"Lightsaber // Saviour","lightsaber|saviour|savior"],
+  [2,"Oceans 2001","oceans"],[2,"Solarflare","solar flare"],[2,"Emails","email"],[2,"Lemonade"],
+  [3,"Princess Daisy"],[3,"Welcome 2 Unknown Death","welcome to unknown death"],
+  [4,"Heal You // Bladerunner","heal you|bladerunner|blade runner"],[5,"Deathstar // Getting Benjamins","deathstar|death star|getting benjamins"]]},
+
+ {q:"Name a producer or guest on Unknown Death 2002", note:"Anyone credited besides Yung Lean.", a:[
+  [0,"Yung Gud","gud"],[0,"Yung Sherman","sherman"],[1,"Bladee"],[2,"Whitearmor","white armor"],
+  [3,"Suicideyear","suicide year"],[3,"Friendzone","friend zone"],
+  [5,"Gregar","grxgar"],[5,"Baba Stiltz"],[5,"Yung Eddi.e","yung eddie|eddie"]]},
+
+ {q:"Name a song on Bladee's Eversince", note:"The 2016 album, 12 tracks.", a:[
+  [0,"Who Goes There"],[1,"Sugar"],[1,"Romeo"],[1,"Skin"],
+  [2,"Lovenote","love note"],[2,"Missing Person"],[2,"Xd Out","xed out|x'd out"],
+  [3,"So What"],[3,"Wrist Cry"],[3,"Rip"],[4,"Sick"],[5,"Bloodveil/Stillborn","bloodveil|stillborn|blood veil"]]},
+
+ {q:"Name a song on Ecco2k's E", note:"The 2019 album, 12 tracks.", a:[
+  [0,"Peroxide"],[1,"AAA Powerline","powerline"],[1,"Calcium"],[2,"Fragile"],[2,"Security!"],
+  [3,"Time"],[3,"Fruit Bleed Juice"],[3,"Sugar & Diesel","sugar diesel"],
+  [4,"Don't Ask"],[4,"Blue Eyes"],[5,"Cc"],[5,"Bliss Fields"]]},
+
+ {q:"Name a Lil B song", note:"Thousands exist, so the bank only has the better-known ones.", a:[
+  [0,"Wonton Soup"],[0,"I'm God"],
+  [1,"Like a Martian"],[1,"Pretty Bitch","im a pretty bitch"],[1,"Ellen Degeneres","ellen"],[1,"Look Like Jesus"],
+  [2,"Fuck KD","f kd|fuck kevin durant"],[2,"No Black Person Is Ugly"],[2,"B.O.R. (Birth of Rap)","bor|birth of rap"],[2,"The Age of Information"],[2,"I Own Swag"],
+  [3,"Bill Bellamy"],[3,"Justin Bieber"],[3,"Miley Cyrus","im miley cyrus"],[3,"Paris Hilton","im paris hilton"],[3,"California Boy"],
+  [3,"Suck My Dick Ho","suck my dick hoe"],[3,"Motivation"],
+  [4,"Dr. Phil"],[4,"Flex 36"],[4,"Katy Perry"],[4,"Charlie Sheen"],[4,"Unchain Me"],[4,"Cold War"],[4,"Exhibit 6"],
+  [4,"T-Shirts & Buddens","t shirts and buddens|tshirts buddens"],[4,"I Love You"],
+  [5,"Swag Jerry Rice"],[5,"I'm Heem"],[5,"Realist Alive"],[5,"I'm the Devil"],[5,"Violate That Bitch"],[5,"Ima Eat Her Ass"]]},
+
+ {q:"Name a Yung Lean song", note:"Any era. Open-ended, so the bank won't have every track.", a:[
+  [0,"Ginseng Strip 2002","ginseng strip"],[0,"Kyoto"],[1,"Yoshi City"],[1,"Hurt"],[1,"Agony"],
+  [2,"Gatorade"],[2,"Red Bottom Sky"],[2,"Miami Ultras"],[2,"Hoover"],[2,"Afghanistan"],[2,"Motorola"],[2,"Bliss"],
+  [3,"Emails","email"],[3,"Oreomilkshake","oreo milkshake"],[3,"Lightsaber // Saviour","lightsaber|saviour"],[3,"Nitevision","nightvision"],
+  [3,"Metallic Intuition"],[3,"Hennessy & Sailor Moon","hennessy sailor moon"],[3,"Crystal City"],[3,"Boylife in EU"],[3,"Friday the 13th"],
+  [3,"Happy Feet"],[3,"Ghosttown","ghost town"],[3,"Sandman"],[3,"Volt"],[3,"Monster"],[3,"Outta My Head"],[3,"Pikachu"],
+  [4,"Diamonds"],[4,"Leanworld","lean world"],[4,"Blinded"],[4,"Marble Phone"],[4,"Violence"],[4,"Blommor"],[4,"Yellowman"],
+  [4,"Sunrise Angel"],[4,"Af1s","af1's|air force ones"],[4,"Skimask","ski mask"],[4,"Hunting My Own Skin"],[4,"Iceman"],
+  [4,"Princess Daisy"],[4,"Solarflare"],[4,"Oceans 2001","oceans"],[4,"Trip"],
+  [5,"Dog Boy","dogboy"],[5,"Ice Cold Smoke"],[5,"Helt Ensam"],[5,"Muddy Sea"],[5,"Silver Arrows"],[5,"Fallen Demon"]]},
+
+ {q:"Name a Bladee song", note:"Solo or collab. Open-ended, so the bank won't have every track.", a:[
+  [0,"Be Nice 2 Me","be nice to me"],[1,"Obedient"],[1,"Who Goes There"],
+  [2,"Into Dust"],[2,"Unreal"],[2,"Sugar"],[2,"Romeo"],[2,"Reality Surf"],[2,"Drama"],
+  [3,"Mallwhore Freestyle","mallwhore"],[3,"Lordship"],[3,"Sesame Street"],[3,"Apple"],[3,"Decay"],[3,"Cinderella"],[3,"Gatekeeper"],
+  [3,"Topman"],[3,"Side by Side"],[3,"Trash Star"],[3,"Hotel Breakfast"],[3,"Egobaby","ego baby"],[3,"Noblest Strive"],
+  [3,"I Chose to Be This Way"],[3,"Bleach"],[3,"Waster"],[3,"Western Union"],[3,"The Flag Is Raised"],
+  [3,"Girls Just Want to Have Fun"],[3,"5 Star Crest (4 Vattenrum)","5 star crest|five star crest"],[3,"I Don't Like People (Whitney)","i dont like people|whitney"],
+  [3,"Flexing & Finessing","flexing finessing|flexin and finessin"],[3,"Skin"],
+  [4,"Deletee","deletee intro|delete"],[4,"Wallet Won't Fold"],[4,"Everlasting Flames"],[4,"Thee 9 Is Up","the 9 is up"],[4,"Frosty the Snowman"],
+  [4,"Destroy Me"],[4,"Lovenote","love note"],[4,"Ebay"],[4,"Subaru"],[4,"Butterfly"],[4,"Missing Person"],[4,"Wrist Cry"],[4,"Close"],
+  [4,"Puppet Master"],[4,"Jewelry"],[4,"Oxygen"],[4,"Mean Girls"],[4,"Let's Ride"],[4,"Understatement"],[4,"Blue Crush Angel"],
+  [4,"One Second"],[4,"Hero of My Story 3style3","hero of my story"],[4,"Nike Just Do It"],[4,"Xd Out","xed out"],[4,"So What"],[4,"Rain3ow Star","rainbow star"],
+  [5,"Dresden ER"],[5,"Icarus 3reestyle","icarus freestyle"],[5,"Velociraptor"],[5,"Terrible Excellence"],[5,"Yung Sherman"]]},
+
+ {q:"Name a song Clams Casino produced", note:"For anyone, or his own instrumentals. Open-ended.", a:[
+  [0,"I'm God"],[1,"Palace"],[1,"Wassup"],[1,"Norf Norf"],
+  [2,"Bass"],[2,"Leaf"],[2,"Demons"],[2,"LVL","level"],[2,"Hell"],[2,"The Fall"],
+  [3,"Motivation"],[3,"Take 1","take one"],[3,"4 Gold Chains","four gold chains"],[3,"Can't Get Over You"],[3,"Bird Call"],[3,"Angels"],
+  [4,"Summertime"],[4,"One Last Thing"],[4,"Realist Alive"],[4,"What You Doin","what you doing"],[4,"Cold War"],[4,"Unchain Me"],[4,"I'm the Devil"],
+  [4,"All I Need"],[4,"Gravy"],[4,"Hours"],[4,"Cocaine Castle"],[4,"Be Somebody"],[4,"Witness"],[4,"All Nite","all night"],
+  [5,"Worth It"],[5,"Illest Alive"],[5,"Gorilla"],[5,"Waterfalls"],[5,"Natural"],[5,"Drowning"],[5,"Treetop"],[5,"Numb"],
+  [5,"A Breath Away"],[5,"Ghost in a Kiss"],[5,"Back to You"],[5,"Into the Fire"],[5,"Thanks to You"]]}
+];
+
+/* ---------- matching ---------- */
+function norm(s){
+  return s.toLowerCase().replace(/\$/g,"s").replace(/[&+]/g,"and").replace(/ø/g,"o")
+    .normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"").replace(/^the(?=.{3,})/,"");
+}
+function lev(a,b){
+  if(Math.abs(a.length-b.length)>2) return 9;
+  let prev=[...Array(b.length+1).keys()];
+  for(let i=1;i<=a.length;i++){
+    const cur=[i];
+    for(let j=1;j<=b.length;j++)
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[b.length];
+}
+PROMPTS.forEach(p=>{
+  p.keys=[];
+  p.a.forEach((row,i)=>{
+    const names=[row[1]].concat(row[2]?row[2].split("|"):[]);
+    names.forEach(n=>{
+      const k=norm(n); p.keys.push([k,i]);
+      if(k.startsWith("asap")&&k.length>6) p.keys.push([k.slice(4),i]);
+    });
+  });
+});
+function match(p,raw){
+  const g=norm(raw); if(!g) return -1;
+  for(const [k,i] of p.keys) if(k===g) return i;
+  if(g.length<5) return -1;
+  let best=-1,bd=9;
+  for(const [k,i] of p.keys){
+    if(k.length<5) continue;
+    const d=lev(g,k), lim=k.length>=9?2:1;
+    if(d<=lim&&d<bd){bd=d;best=i;}
+  }
+  return best;
+}
+
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString("en-US");
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h;}
+function pick(rand){
+  const idx=PROMPTS.map((_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  return idx.slice(0,ROUNDS).map(i=>PROMPTS[i]);
+}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
+const REDUCE=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function ramp(stops,m){
+  let i=0; while(i<stops.length-2&&m>stops[i+1][0]) i++;
+  const [a,ca]=stops[i],[b,cb]=stops[i+1],t=Math.min(1,Math.max(0,(m-a)/(b-a)));
+  return ca.map((v,k)=>Math.round(v+(cb[k]-v)*t));
+}
+const rgb=c=>"rgb("+c.join(",")+")";
+
+/* ---------- the shaft ---------- */
+const PAGE=[[0,[98,78,122]],[1500,[62,52,104]],[3000,[30,36,78]],[5000,[12,22,46]],[7000,[4,7,14]]];
+const VOID=[[0,[58,44,84]],[1500,[36,30,70]],[3000,[18,22,54]],[5000,[8,14,34]],[7000,[2,4,10]]];
+const WALL=[[0,[255,220,228]],[700,[226,178,250]],[2000,[126,114,206]],[4000,[44,66,128]],[7000,[18,32,60]]];
+const TCOL=["#ffc9b0","#ffa8c5","#d6a8ff","#9db4ff","#8fe9ff","#ffffff"];
+const U=3, ROW=6, PPM=0.25, DARK="#0c0818";
+const cv=$("cv"), cx=cv.getContext("2d");
+let W=0,H=0,DPR=1;
+const T={y:0,from:0,to:0,t0:0,dur:0,label:"",tier:-1,stops:[],parts:[],shake:0,miss:0};
+function size(){const r=cv.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);}
+addEventListener("resize",size);
+function nz(n){n=Math.imul(n^0x9e3779b9,0x85ebca6b);n^=n>>>13;n=Math.imul(n,0xc2b2ae35);n^=n>>>16;return(n>>>0)/4294967296;}
+function vn(x,s){const i=Math.floor(x),f=x-i;return nz(i+s)*(1-f)+nz(i+1+s)*f;}
+const snap=v=>Math.round(v/U)*U;
+function wallW(r,side){const base=Math.max(24,W*0.15);return snap(base+vn(r/6,side)*base*0.7+nz(r*7+side)*U*1.4);}
+function plate(text,x,y,color){
+  cx.font="8px 'Press Start 2P', monospace";cx.textAlign="center";cx.textBaseline="middle";
+  const w=cx.measureText(text).width;
+  cx.fillStyle=DARK;cx.fillRect(Math.round(x-w/2-5),Math.round(y-7),Math.round(w+10),14);
+  cx.fillStyle=color;cx.fillText(text,x,y+1);
+}
+function clip(s){const max=Math.max(6,Math.floor((W-2*Math.max(24,W*0.15)*1.7-16)/8));s=s.toUpperCase();return s.length>max?s.slice(0,max-2)+"..":s;}
+
+function sinkTo(m,label,tier){
+  T.from=T.y;T.to=m;T.t0=performance.now();T.dur=REDUCE?0:800+(m-T.y)*1.4;T.label=label;T.tier=tier;
+  T.stops.push({m,label,tier});
+  document.documentElement.style.setProperty("--bg",rgb(ramp(PAGE,m)));
+}
+function surface(){
+  T.y=T.from=T.to=0;T.dur=0;T.label="";T.tier=-1;T.stops=[];T.parts=[];
+  document.documentElement.style.setProperty("--bg",rgb(ramp(PAGE,0)));
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  if(!W||!H){size();if(!W||!H)return;}
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.imageSmoothingEnabled=false;
+
+  let falling=false;
+  if(T.y!==T.to){
+    const t=T.dur?Math.min(1,(now-T.t0)/T.dur):1;
+    const e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+    T.y=t>=1?T.to:T.from+(T.to-T.from)*e;falling=t<1;
+  }
+  $("depth").textContent=fmt(Math.round(T.y));
+
+  const dy=Math.round(H*(H<260?0.5:0.42));
+  const cam=Math.round(T.y*PPM)-dy;
+  const mid=W/2;
+
+  /* rows: sky, walls, void, floor */
+  for(let r=Math.floor(cam/ROW);r<=Math.floor((cam+H)/ROW);r++){
+    const sy=r*ROW-cam, m=r*ROW/PPM;
+    if(m<0){cx.fillStyle=rgb(ramp(PAGE,0).map(v=>Math.max(0,v+Math.round(m/40))));cx.fillRect(0,sy,W,ROW);continue;}
+    if(m>=FLOOR){cx.fillStyle=m<FLOOR+ROW/PPM?"#8fe9ff":"#0a1226";cx.fillRect(0,sy,W,ROW);continue;}
+    const wc=ramp(WALL,m), l=wallW(r,11), rt=wallW(r,977);
+    cx.fillStyle=rgb(wc.map((v,k)=>Math.round(v*(0.86+nz(r*3+k)*0.1))));cx.fillRect(0,sy,W,ROW);
+    cx.fillStyle=rgb(ramp(VOID,m));cx.fillRect(l,sy,W-l-rt,ROW);
+    cx.fillStyle=rgb(wc.map(v=>Math.min(255,v+34)));cx.fillRect(l-U,sy,U,ROW);cx.fillRect(W-rt,sy,U,ROW);
+    if(nz(r*13)>.86){cx.fillStyle="rgba(12,8,24,.22)";cx.fillRect(snap(nz(r*17)*(l-12)),sy,U*2,U);cx.fillRect(W-snap(nz(r*19)*(rt-12))-U*2,sy,U*2,U);}
+  }
+  /* pixel clouds above the surface */
+  for(let k=0;k<5;k++){
+    const wy=-40-k*58, sy=wy-cam; if(sy<-40||sy>H) continue;
+    const drift=REDUCE?0:now/(900+k*260);
+    const x=snap(((nz(k+50)*W*1.4+drift)%(W+120))-90), a=.5+nz(k+60)*.35;
+    cx.fillStyle="rgba(255,220,228,"+a+")";
+    cx.fillRect(x,sy,72,U*3);cx.fillRect(x+U*3,sy-U*2,45,U*2);cx.fillRect(x+U*7,sy-U*4,21,U*2);
+  }
+  /* specks drifting in the void */
+  for(let k=0;k<70;k++){
+    const sy=nz(k+200)*FLOOR*PPM-cam; if(sy<0||sy>H) continue;
+    const x=snap(W*0.28+nz(k+300)*W*0.44);
+    cx.fillStyle="rgba(246,240,250,"+(REDUCE?.25:(.12+.2*Math.abs(Math.sin(now/700+k))))+")";cx.fillRect(x,snap(sy),U,U);
+  }
+  /* depth marks */
+  cx.font="8px 'Press Start 2P', monospace";cx.textBaseline="alphabetic";
+  for(let m=0;m<=FLOOR;m+=500){
+    const sy=m*PPM-cam; if(sy<-10||sy>H+10) continue;
+    cx.fillStyle="rgba(246,240,250,.2)";
+    for(let x=snap(W*0.18);x<W*0.82;x+=12) cx.fillRect(x,Math.round(sy)-1,6,2);
+    cx.textAlign="left";cx.fillStyle="rgba(246,240,250,.6)";
+    cx.fillText(m===0?"SURFACE":m===FLOOR?"THE FLOOR":m+"M",snap(W*0.15+Math.max(24,W*0.15)*0.9),Math.round(sy)-5);
+  }
+  /* earlier answers stay where they landed */
+  const last=T.stops[T.stops.length-1];
+  for(const s of T.stops){
+    if(s===last) continue;
+    const sy=s.m*PPM-cam; if(sy<-10||sy>H+10) continue;
+    plate(clip(s.label),mid,Math.round(sy),TCOL[s.tier]);
+  }
+  /* speed streaks and trail */
+  if(falling&&!REDUCE){
+    cx.fillStyle="rgba(246,240,250,.16)";
+    for(let k=0;k<5;k++) cx.fillRect(snap(W*0.24+Math.random()*W*0.52),snap(Math.random()*H),U,U*7);
+    T.parts.push({x:mid+(Math.random()*30-15),wy:T.y*PPM-12,t:now});
+  }
+  T.parts=T.parts.filter(p=>now-p.t<700);
+  for(const p of T.parts){cx.fillStyle=T.tier>=0?TCOL[T.tier]:"#f6f0fa";cx.globalAlpha=1-(now-p.t)/700;cx.fillRect(snap(p.x),snap(p.wy-cam-(now-p.t)/30),U,U);}
+  cx.globalAlpha=1;
+
+  /* the tape */
+  const sh=now-T.shake<420&&!REDUCE?Math.round(Math.sin((now-T.shake)/28)*5):0;
+  const bob=falling||REDUCE?0:Math.round(Math.sin(now/480)*2);
+  const x0=Math.round(mid)-18+sh, y0=dy-12+bob, spin=falling?Math.floor(now/90)%2:0;
+  cx.fillStyle=DARK;cx.fillRect(x0-U,y0-U,36+U*2,24+U*2);
+  cx.fillStyle=T.tier>=0?TCOL[T.tier]:"#f6f0fa";cx.fillRect(x0,y0,36,24);
+  cx.fillStyle="#fff";cx.fillRect(x0+U,y0+U,30,U);
+  cx.fillStyle=DARK;cx.fillRect(x0+6,y0+9,24,9);
+  cx.fillStyle="#f6f0fa";cx.fillRect(x0+9,y0+12-spin*U,U,U+spin*U*2>9?9:U+spin*U);cx.fillRect(x0+24,y0+12-(1-spin)*U*(falling?1:0),U,U+(falling?(1-spin)*U:0));
+  cx.fillStyle=DARK;cx.fillRect(x0+9,y0+21,18,U);
+  if(now-T.miss<1300) plate("NO DESCENT",mid,dy+30,"#ff7d9c");
+  else if(T.label) plate(clip(T.label),mid,dy+30,TCOL[T.tier]);
+}
+size();requestAnimationFrame(frame);
+
+function tierRows(el,fill){
+  el.innerHTML="";
+  TIERS.forEach((t,i)=>{
+    const row=document.createElement("div");row.className="trow t"+i;
+    const name=document.createElement("div");name.className="tname";
+    name.innerHTML=t.n+"<small>+"+t.p+" pts / "+fmt(t.p*10)+" m</small>";
+    const body=document.createElement("div");
+    if(fill(i,body)===false) return;
+    row.append(name,body);el.appendChild(row);
+  });
+}
+tierRows($("legend"),(i,body)=>{body.className="tdesc";body.textContent=TIERS[i].d;});
+
+/* ---------- game ---------- */
+let G=null, tick=0;
+function show(id){["s-start","s-play","s-end"].forEach(s=>$(s).hidden=s!==id);window.scrollTo(0,0);}
+function begin(mode){
+  const seed=mode==="daily"?hash("undercloud-"+today()):(Math.random()*2**31)|0;
+  G={mode,prompts:pick(rng(seed)),i:0,score:0,log:[]};
+  surface();show("s-play");ask();
+}
+function ask(){
+  const p=G.prompts[G.i];
+  $("count").textContent="Prompt "+(G.i+1)+" of "+ROUNDS;
+  $("q").textContent=p.q;$("note").textContent=p.note;$("note").hidden=false;
+  $("ask").hidden=false;$("result").hidden=true;$("msg").textContent="";
+  const g=$("guess");g.value="";g.focus({preventScroll:true});
+  const end=performance.now()+SECONDS*1000;
+  clearInterval(tick);
+  const bar=$("tbar"),wrap=$("timer");wrap.classList.remove("low");bar.style.width="100%";
+  tick=setInterval(()=>{
+    const left=end-performance.now();
+    bar.style.width=Math.max(0,Math.ceil(left/1000)/SECONDS*100)+"%";
+    wrap.classList.toggle("low",left<6000);
+    if(left<=0) settle(-1,"Out of time");
+  },100);
+}
+function settle(ai,why){
+  clearInterval(tick);
+  const p=G.prompts[G.i];
+  const hit=ai>=0, tier=hit?p.a[ai][0]:-1, pts=hit?TIERS[tier].p:0;
+  G.score+=pts;G.log.push({q:p.q,ans:hit?p.a[ai][1]:null,tier,pts});
+  $("ask").hidden=true;$("note").hidden=true;$("result").hidden=false;
+  const tw=$("r-tier");
+  if(hit){
+    $("r-eyebrow").textContent="You said "+p.a[ai][1];
+    tw.className="tier-word t"+tier;tw.textContent=TIERS[tier].n;
+    $("r-gain").innerHTML="<b>+"+pts+" pts</b> / down "+fmt(pts*10)+" m";
+    sinkTo(G.score*10,p.a[ai][1],tier);
+  }else{
+    $("r-eyebrow").textContent=why;
+    tw.className="tier-word";tw.textContent="No descent";
+    $("r-gain").textContent="0 pts. You hold at "+fmt(G.score*10)+" m.";
+    T.shake=T.miss=performance.now();
+  }
+  tierRows($("ladder"),(i,body)=>{
+    const list=p.a.map((r,k)=>[r,k]).filter(x=>x[0][0]===i);
+    if(!list.length) return false;
+    body.className="chips";
+    list.forEach(([r,k])=>{const c=document.createElement("span");c.className="chip"+(k===ai?" you":"");c.textContent=r[1];body.appendChild(c);});
+  });
+  const nb=$("b-next");nb.textContent=G.i===ROUNDS-1?"See how deep you got":"Next prompt";nb.focus({preventScroll:true});
+}
+$("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  if($("ask").hidden) return;
+  const g=$("guess"),v=g.value.trim(); if(!v) return;
+  const ai=match(G.prompts[G.i],v);
+  if(ai>=0) return settle(ai);
+  $("msg").textContent="“"+v+"” isn't in the answer bank. Try another name.";
+  T.shake=performance.now();
+  g.classList.remove("shake");void g.offsetWidth;g.classList.add("shake");g.select();
+});
+$("b-pass").onclick=()=>settle(-1,"Passed");
+$("b-next").onclick=()=>{G.i++;G.i<ROUNDS?ask():finish();};
+
+const RANKS=[[0,"Radio listener","You stayed up in the haze. Go one name past the obvious next time."],
+ [1500,"Blog reader","You know the names that made the 2011 roundups."],
+ [3000,"Tumblr archivist","Past the headliners and into the crews around them."],
+ [4500,"SoundCloud diver","Producers, side aliases, the second name on the tape."],
+ [5500,"Deep cut collector","Very few people can follow you down here."],
+ [6500,"Lost tape holder","Near the floor. You were there, or you did the reading."]];
+function finish(){
+  const m=G.score*10;
+  const rank=RANKS.filter(r=>m>=r[0]).pop();
+  $("e-mode").textContent=G.mode==="daily"?"Daily dive / "+today():"Free dive";
+  $("e-depth").textContent=fmt(m);$("e-rank").textContent=rank[1];
+  let line=rank[2];
+  const best=+(store("uc-best")||0);
+  if(m>best){store("uc-best",String(m)); if(best>0) line+=" New personal best.";}
+  $("e-line").textContent=line;
+  const ul=$("e-log");ul.innerHTML="";
+  G.log.forEach(r=>{
+    const li=document.createElement("li");
+    li.innerHTML='<span class="q"></span><span class="a '+(r.ans?"t"+r.tier:"miss")+'"></span><span class="m"></span>';
+    li.children[0].textContent=r.q;
+    li.children[1].textContent=r.ans?r.ans+" / "+TIERS[r.tier].n:"No answer";
+    li.children[2].textContent="+"+fmt(r.pts*10)+" m";
+    ul.appendChild(li);
+  });
+  const bars="▁▂▄▅▇█";
+  $("e-share").value="UNDERCLOUD "+(G.mode==="daily"?today():"free dive")+"\n"+fmt(m)+" m · "+rank[1]+"\n"+
+    G.log.map(r=>r.tier<0?"·":bars[r.tier]).join(" ");
+  $("e-share").hidden=true;$("b-copy").textContent="Copy result";
+  show("s-end");
+}
+$("b-copy").onclick=()=>{
+  const ta=$("e-share");
+  const fallback=()=>{ta.hidden=false;ta.focus();ta.select();$("b-copy").textContent="Select and copy below";};
+  try{navigator.clipboard.writeText(ta.value).then(()=>{$("b-copy").textContent="Copied";},fallback);}catch(e){fallback();}
+};
+function home(){
+  clearInterval(tick);surface();
+  const best=+(store("uc-best")||0);
+  $("best").textContent=best?"Your deepest dive on this device: "+fmt(best)+" m.":"";
+  show("s-start");
+}
+$("b-daily").onclick=()=>begin("daily");
+$("b-free").onclick=()=>begin("free");
+$("b-again").onclick=()=>begin("free");
+$("b-home").onclick=home;
+home();
+</script>
+</body>
+</html>
